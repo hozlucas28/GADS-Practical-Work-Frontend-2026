@@ -5,6 +5,7 @@ const API_BASE_URL = (
 ).replace(/\/$/, '')
 
 const TOKEN_STORAGE_KEY = 'tt_access_token'
+export const AUTH_CHANGE_EVENT = 'gads-auth-change'
 
 type ApiError = {
   detail?: string
@@ -62,9 +63,8 @@ export type User = {
   email: string
   estado: string
   ultimo_acceso: string | null
-  id_rol: number
   id_empleado: number
-  nombre_rol: string
+  rol: string
 }
 
 export type UserUpdate = {
@@ -72,8 +72,7 @@ export type UserUpdate = {
   email?: string
   estado?: string
   ultimo_acceso?: string | null
-  id_rol?: number
-  id_empleado?: number
+  rol?: string
   contrasena?: string
 }
 
@@ -81,7 +80,7 @@ export type UserCreate = {
   nombre_usuario: string
   email: string
   estado: string
-  id_rol: number
+  rol: string
   id_empleado: number
   contrasena: string
 }
@@ -369,9 +368,11 @@ export function getStoredToken() {
 export function setStoredToken(token: string) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(TOKEN_STORAGE_KEY, token)
+  window.dispatchEvent(new Event(AUTH_CHANGE_EVENT))
 }
 
 export function clearStoredToken() {
   if (typeof window === 'undefined') return
   window.localStorage.removeItem(TOKEN_STORAGE_KEY)
+  window.dispatchEvent(new Event(AUTH_CHANGE_EVENT))
 }

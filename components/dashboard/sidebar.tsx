@@ -1,8 +1,17 @@
 "use client"
 
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import {
+  AUTH_CHANGE_EVENT,
+  clearStoredToken,
+  fetchMe,
+  getStoredToken,
+  type AuthUser,
+} from "@/lib/api"
 import {
   Users,
   Calendar,
@@ -10,6 +19,7 @@ import {
   FileText,
   CalendarCheck,
   LayoutDashboard,
+  LogOut,
 } from "lucide-react"
 
 const navItems = [
@@ -24,6 +34,39 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+
+  const loadUser = useCallback(() => {
+    const token = getStoredToken()
+    if (!token) {
+      setUser(null)
+      setIsCheckingAuth(false)
+      return
+    }
+
+    setIsCheckingAuth(true)
+    fetchMe()
+      .then((me) => {
+        setUser(me)
+      })
+      .catch(() => {
+        setUser(null)
+        clearStoredToken()
+      })
+      .finally(() => {
+        setIsCheckingAuth(false)
+      })
+  }, [])
+
+  useEffect(() => {
+    loadUser()
+
+    window.addEventListener(AUTH_CHANGE_EVENT, loadUser)
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, loadUser)
+  }, [loadUser])
+
+  const initials = user?.nombre_usuario.slice(0, 2).toUpperCase() ?? "--"
 
   return (
     <aside
@@ -71,16 +114,29 @@ export function Sidebar() {
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-sm font-medium">
-              AM
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                Admin Manager
+                {isCheckingAuth
+                  ? "Verificando..."
+                  : user?.nombre_usuario ?? "Sin sesion"}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
-                admin@empresa.com
+                {user?.email ?? "Sesion requerida"}
               </p>
             </div>
+            {user && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                aria-label="Cerrar sesion"
+                onClick={clearStoredToken}
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </div>

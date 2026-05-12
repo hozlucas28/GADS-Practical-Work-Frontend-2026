@@ -1,7 +1,6 @@
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { AlertList } from "@/components/dashboard/alert-list"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AuthPanel } from "@/components/auth/auth-panel"
 import { EmployeeCountCard } from "@/components/dashboard/employee-count-card"
 import { fetchHealth } from "@/lib/api"
 
@@ -21,8 +20,6 @@ export default async function DashboardPage() {
       title="Dashboard"
       subtitle="Vista general del control laboral"
     >
-      <AuthPanel />
-
       {error && (
         <div className="mb-6">
           <Alert variant="destructive">

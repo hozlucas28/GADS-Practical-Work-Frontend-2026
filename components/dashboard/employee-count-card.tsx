@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Users } from "lucide-react"
 import { KpiCard } from "@/components/dashboard/kpi-card"
-import { fetchEmployees } from "@/lib/api"
+import { AUTH_CHANGE_EVENT, fetchEmployees, getStoredToken } from "@/lib/api"
 import { toast } from "@/hooks/use-toast"
 
 export function EmployeeCountCard() {
@@ -11,6 +11,12 @@ export function EmployeeCountCard() {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
 
   const loadEmployees = useCallback(() => {
+    if (!getStoredToken()) {
+      setCount(null)
+      setStatus("idle")
+      return
+    }
+
     setStatus("loading")
     fetchEmployees()
       .then((data) => {
@@ -30,6 +36,9 @@ export function EmployeeCountCard() {
 
   useEffect(() => {
     loadEmployees()
+
+    window.addEventListener(AUTH_CHANGE_EVENT, loadEmployees)
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, loadEmployees)
   }, [loadEmployees])
 
   return (
@@ -41,7 +50,9 @@ export function EmployeeCountCard() {
           ? "Cargando"
           : status === "error"
             ? "Sin acceso"
-            : "Actualizado"
+            : count === null
+              ? "Inicia sesion"
+              : "Actualizado"
       }
       changeType={status === "error" ? "negative" : "positive"}
       icon={Users}

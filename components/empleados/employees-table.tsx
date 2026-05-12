@@ -9,8 +9,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
 import {
+  AUTH_CHANGE_EVENT,
   createEmployee,
   fetchEmployees,
+  getStoredToken,
   updateEmployee,
   type Employee,
   type EmployeeCreate,
@@ -109,6 +111,13 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
   const [loadError, setLoadError] = useState<string | null>(error ?? null)
 
   const loadEmployees = useCallback(() => {
+    if (!getStoredToken()) {
+      setEmployees([])
+      setLoadError("Inicia sesion para cargar empleados.")
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     fetchEmployees()
       .then((data) => {
@@ -129,6 +138,9 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
     if (initialEmployees) return
 
     loadEmployees()
+
+    window.addEventListener(AUTH_CHANGE_EVENT, loadEmployees)
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, loadEmployees)
   }, [initialEmployees, loadEmployees])
 
   const filteredEmployees = useMemo(() => {

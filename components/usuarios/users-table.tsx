@@ -26,7 +26,7 @@ type UserFormState = {
   nombre_usuario: string
   email: string
   estado: string
-  id_rol: string
+  rol: string
   id_empleado: string
   contrasena: string
 }
@@ -35,7 +35,7 @@ type UserCreateState = {
   nombre_usuario: string
   email: string
   estado: string
-  id_rol: string
+  rol: string
   id_empleado: string
   contrasena: string
 }
@@ -45,7 +45,7 @@ function buildUserForm(user: User): UserFormState {
     nombre_usuario: user.nombre_usuario ?? "",
     email: user.email ?? "",
     estado: user.estado ?? "",
-    id_rol: user.id_rol ? String(user.id_rol) : "",
+    rol: user.rol ?? "",
     id_empleado: user.id_empleado ? String(user.id_empleado) : "",
     contrasena: "",
   }
@@ -60,14 +60,8 @@ function buildUserPayload(original: User, formState: UserFormState): UserUpdate 
   if (formState.email !== original.email) payload.email = formState.email
   if (formState.estado !== original.estado) payload.estado = formState.estado
 
-  const roleId = formState.id_rol ? Number(formState.id_rol) : NaN
-  if (!Number.isNaN(roleId) && roleId !== original.id_rol) {
-    payload.id_rol = roleId
-  }
-
-  const employeeId = formState.id_empleado ? Number(formState.id_empleado) : NaN
-  if (!Number.isNaN(employeeId) && employeeId !== original.id_empleado) {
-    payload.id_empleado = employeeId
+  if (formState.rol !== original.rol) {
+    payload.rol = formState.rol
   }
 
   if (formState.contrasena.trim()) {
@@ -89,7 +83,7 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
     nombre_usuario: "",
     email: "",
     estado: "activo",
-    id_rol: "",
+    rol: "Empleado",
     id_empleado: "",
     contrasena: "",
   })
@@ -129,7 +123,7 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
       return (
         user.nombre_usuario.toLowerCase().includes(query) ||
         user.email.toLowerCase().includes(query) ||
-        user.nombre_rol.toLowerCase().includes(query)
+        user.rol.toLowerCase().includes(query)
       )
     })
   }, [users, searchQuery])
@@ -151,7 +145,7 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
       nombre_usuario: "",
       email: "",
       estado: "activo",
-      id_rol: "",
+      rol: "Empleado",
       id_empleado: "",
       contrasena: "",
     })
@@ -169,11 +163,10 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
   ) => {
     event.preventDefault()
 
-    const roleId = Number(createState.id_rol)
     const employeeId = Number(createState.id_empleado)
 
-    if (Number.isNaN(roleId) || Number.isNaN(employeeId)) {
-      setCreateError("Los IDs deben ser numeros validos.")
+    if (Number.isNaN(employeeId)) {
+      setCreateError("El ID de empleado debe ser un numero valido.")
       return
     }
 
@@ -181,7 +174,7 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
       nombre_usuario: createState.nombre_usuario.trim(),
       email: createState.email.trim(),
       estado: createState.estado.trim(),
-      id_rol: roleId,
+      rol: createState.rol.trim(),
       id_empleado: employeeId,
       contrasena: createState.contrasena.trim(),
     }
@@ -340,7 +333,7 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
                       {user.email}
                     </td>
                     <td className="px-5 py-4 text-sm text-card-foreground">
-                      {user.nombre_rol}
+                      {user.rol}
                     </td>
                     <td className="px-5 py-4">
                       <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
@@ -409,14 +402,14 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
             </div>
             <div className="grid gap-2">
               <label htmlFor="usuario-rol" className="text-sm font-medium">
-                ID rol
+                Rol
               </label>
               <Input
                 id="usuario-rol"
-                value={formState?.id_rol ?? ""}
+                value={formState?.rol ?? ""}
                 onChange={(event) =>
                   setFormState((prev) =>
-                    prev ? { ...prev, id_rol: event.target.value } : prev,
+                    prev ? { ...prev, rol: event.target.value } : prev,
                   )
                 }
               />
@@ -428,11 +421,7 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
               <Input
                 id="usuario-empleado"
                 value={formState?.id_empleado ?? ""}
-                onChange={(event) =>
-                  setFormState((prev) =>
-                    prev ? { ...prev, id_empleado: event.target.value } : prev,
-                  )
-                }
+                disabled
               />
             </div>
             <div className="grid gap-2">
@@ -530,15 +519,15 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
             </div>
             <div className="grid gap-2">
               <label htmlFor="usuario-rol-nuevo" className="text-sm font-medium">
-                ID rol
+                Rol
               </label>
               <Input
                 id="usuario-rol-nuevo"
-                value={createState.id_rol}
+                value={createState.rol}
                 onChange={(event) =>
                   setCreateState((prev) => ({
                     ...prev,
-                    id_rol: event.target.value,
+                    rol: event.target.value,
                   }))
                 }
               />
