@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
 
@@ -42,7 +41,6 @@ export default function RootLayout({
         </a>
         {children}
         <Toaster />
-        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )
