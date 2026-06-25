@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import {
@@ -16,6 +17,9 @@ import {
   type UserCreate,
   type UserUpdate,
 } from "@/lib/api"
+
+const ROLES = ["Administrador", "Empleado", "ContadorExterno"]
+const ESTADOS = ["activo", "inactivo"]
 
 type UsersTableProps = {
   initialUsers?: User[]
@@ -404,15 +408,23 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
               <label htmlFor="usuario-rol" className="text-sm font-medium">
                 Rol
               </label>
-              <Input
-                id="usuario-rol"
+              <Select
                 value={formState?.rol ?? ""}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setFormState((prev) =>
-                    prev ? { ...prev, rol: event.target.value } : prev,
+                    prev ? { ...prev, rol: value } : prev,
                   )
                 }
-              />
+              >
+                <SelectTrigger id="usuario-rol">
+                  <SelectValue placeholder="Seleccionar rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((rol) => (
+                    <SelectItem key={rol} value={rol}>{rol}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="usuario-empleado" className="text-sm font-medium">
@@ -428,15 +440,23 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
               <label htmlFor="usuario-estado" className="text-sm font-medium">
                 Estado
               </label>
-              <Input
-                id="usuario-estado"
+              <Select
                 value={formState?.estado ?? ""}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setFormState((prev) =>
-                    prev ? { ...prev, estado: event.target.value } : prev,
+                    prev ? { ...prev, estado: value } : prev,
                   )
                 }
-              />
+              >
+                <SelectTrigger id="usuario-estado">
+                  <SelectValue placeholder="Seleccionar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ESTADOS.map((estado) => (
+                    <SelectItem key={estado} value={estado}>{estado}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="usuario-contrasena" className="text-sm font-medium">
@@ -521,16 +541,24 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
               <label htmlFor="usuario-rol-nuevo" className="text-sm font-medium">
                 Rol
               </label>
-              <Input
-                id="usuario-rol-nuevo"
+              <Select
                 value={createState.rol}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setCreateState((prev) => ({
                     ...prev,
-                    rol: event.target.value,
+                    rol: value,
                   }))
                 }
-              />
+              >
+                <SelectTrigger id="usuario-rol-nuevo">
+                  <SelectValue placeholder="Seleccionar rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((rol) => (
+                    <SelectItem key={rol} value={rol}>{rol}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="usuario-empleado-nuevo" className="text-sm font-medium">
@@ -551,16 +579,24 @@ export function UsersTable({ initialUsers, error }: UsersTableProps) {
               <label htmlFor="usuario-estado-nuevo" className="text-sm font-medium">
                 Estado
               </label>
-              <Input
-                id="usuario-estado-nuevo"
+              <Select
                 value={createState.estado}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setCreateState((prev) => ({
                     ...prev,
-                    estado: event.target.value,
+                    estado: value,
                   }))
                 }
-              />
+              >
+                <SelectTrigger id="usuario-estado-nuevo">
+                  <SelectValue placeholder="Seleccionar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ESTADOS.map((estado) => (
+                    <SelectItem key={estado} value={estado}>{estado}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="usuario-contrasena-nuevo" className="text-sm font-medium">

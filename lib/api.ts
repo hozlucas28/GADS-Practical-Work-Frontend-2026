@@ -294,6 +294,12 @@ export async function updateEmployee(idEmpleado: number, payload: EmployeeUpdate
   })
 }
 
+export async function deleteEmployee(idEmpleado: number) {
+  await apiRequest<void>(`/empleados/${idEmpleado}`, {
+    method: 'DELETE',
+  })
+}
+
 export async function fetchSchedules() {
   return apiRequest<Schedule[]>('/horarios')
 }
@@ -312,6 +318,12 @@ export async function updateSchedule(
   return apiRequest<Schedule>(`/horarios/${idHorario}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteSchedule(idHorario: number) {
+  await apiRequest<void>(`/horarios/${idHorario}`, {
+    method: 'DELETE',
   })
 }
 

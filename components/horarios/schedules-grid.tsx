@@ -1,21 +1,26 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Calendar, Clock, Plus } from "lucide-react"
+import { Clock, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import {
   createSchedule,
+  deleteSchedule,
   fetchSchedules,
   updateSchedule,
   type Schedule,
   type ScheduleCreate,
   type ScheduleUpdate,
 } from "@/lib/api"
+
+const TIPOS_HORARIO = ["fijo", "rotativo", "flexible"]
+const ESTADOS = ["activo", "inactivo"]
 
 type SchedulesGridProps = {
   initialSchedules?: Schedule[]
@@ -162,12 +167,14 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
   })
   const [createError, setCreateError] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<Schedule | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const loadSchedules = useCallback(() => {
     setIsLoading(true)
     fetchSchedules()
       .then((data) => {
-        setSchedules(data)
+        setSchedules(data.filter((s) => s.estado === "activo"))
         setLoadError(null)
       })
       .catch((err) => {
@@ -220,6 +227,35 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
   const closeCreateDialog = () => {
     setIsCreateOpen(false)
     setCreateError(null)
+  }
+
+  const openDeleteDialog = (schedule: Schedule) => {
+    setPendingDelete(schedule)
+  }
+
+  const closeDeleteDialog = () => {
+    setPendingDelete(null)
+  }
+
+  const handleDelete = async () => {
+    if (!pendingDelete) return
+    try {
+      setIsDeleting(true)
+      await deleteSchedule(pendingDelete.id_horario)
+      setSchedules((prev) =>
+        prev.filter((s) => s.id_horario !== pendingDelete.id_horario),
+      )
+      toast({
+        title: "Horario eliminado",
+        description: "El horario fue eliminado correctamente.",
+      })
+      closeDeleteDialog()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error al eliminar"
+      toast({ title: "Error", description: message, variant: "destructive" })
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const handleCreateSubmit = async (
@@ -412,9 +448,19 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
                 <span className="text-sm text-muted-foreground">
                   {schedule.dias_descanso_semanal}
                 </span>
-                <Button variant="outline" size="sm" onClick={() => openEditDialog(schedule)}>
-                  Editar
-                </Button>
+                <div className="inline-flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => openEditDialog(schedule)}>
+                    Editar
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Eliminar horario"
+                    onClick={() => openDeleteDialog(schedule)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ))
@@ -454,15 +500,23 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
               <label htmlFor="horario-tipo" className="text-sm font-medium">
                 Tipo
               </label>
-              <Input
-                id="horario-tipo"
+              <Select
                 value={formState?.tipo_horario ?? ""}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setFormState((prev) =>
-                    prev ? { ...prev, tipo_horario: event.target.value } : prev,
+                    prev ? { ...prev, tipo_horario: value } : prev,
                   )
                 }
-              />
+              >
+                <SelectTrigger id="horario-tipo">
+                  <SelectValue placeholder="Seleccionar tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS_HORARIO.map((tipo) => (
+                    <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="horario-entrada" className="text-sm font-medium">
@@ -649,15 +703,23 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
               <label htmlFor="horario-estado" className="text-sm font-medium">
                 Estado
               </label>
-              <Input
-                id="horario-estado"
+              <Select
                 value={formState?.estado ?? ""}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setFormState((prev) =>
-                    prev ? { ...prev, estado: event.target.value } : prev,
+                    prev ? { ...prev, estado: value } : prev,
                   )
                 }
-              />
+              >
+                <SelectTrigger id="horario-estado">
+                  <SelectValue placeholder="Seleccionar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ESTADOS.map((estado) => (
+                    <SelectItem key={estado} value={estado}>{estado}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeEditDialog}>
@@ -712,16 +774,24 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
               <label htmlFor="horario-tipo-nuevo" className="text-sm font-medium">
                 Tipo
               </label>
-              <Input
-                id="horario-tipo-nuevo"
+              <Select
                 value={createState.tipo_horario}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setCreateState((prev) => ({
                     ...prev,
-                    tipo_horario: event.target.value,
+                    tipo_horario: value,
                   }))
                 }
-              />
+              >
+                <SelectTrigger id="horario-tipo-nuevo">
+                  <SelectValue placeholder="Seleccionar tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS_HORARIO.map((tipo) => (
+                    <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="horario-entrada-nuevo" className="text-sm font-medium">
@@ -886,16 +956,24 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
               <label htmlFor="horario-estado-nuevo" className="text-sm font-medium">
                 Estado
               </label>
-              <Input
-                id="horario-estado-nuevo"
+              <Select
                 value={createState.estado}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setCreateState((prev) => ({
                     ...prev,
-                    estado: event.target.value,
+                    estado: value,
                   }))
                 }
-              />
+              >
+                <SelectTrigger id="horario-estado-nuevo">
+                  <SelectValue placeholder="Seleccionar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ESTADOS.map((estado) => (
+                    <SelectItem key={estado} value={estado}>{estado}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeCreateDialog}>
@@ -913,6 +991,41 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!pendingDelete} onOpenChange={(open) => (!open ? closeDeleteDialog() : null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar horario</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Esta accion eliminara el horario{" "}
+            <span className="font-medium text-foreground">
+              {pendingDelete?.nombre_horario}
+            </span>{" "}
+            de forma permanente. Esta accion no se puede deshacer.
+          </p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={closeDeleteDialog}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner className="size-4" />
+                  Eliminando
+                </span>
+              ) : (
+                "Eliminar"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

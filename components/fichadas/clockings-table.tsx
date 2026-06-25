@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import {
   createClocking,
@@ -17,6 +18,36 @@ import {
   type ClockingCreate,
   type ClockingUpdate,
 } from "@/lib/api"
+
+const TIPOS_FICHADA = ["entrada", "salida"]
+
+function exportClockingsToCsv(clockings: Clocking[]) {
+  const headers = ["ID", "Fecha y hora", "Tipo", "ID Empleado", "Observacion", "ID Origen", "Fue corregida"]
+  const rows = clockings.map((c) => [
+    c.id_fichada,
+    c.fecha_hora,
+    c.tipo_fichada,
+    c.id_empleado,
+    c.observacion ?? "",
+    c.id_origen_fichada ?? "",
+    c.fue_corregida ?? "",
+  ])
+
+  const csvContent = [headers, ...rows]
+    .map((row) =>
+      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
+    )
+    .join("\n")
+
+  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  const timestamp = new Date().toISOString().slice(0, 10)
+  link.href = url
+  link.download = `fichadas_${timestamp}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
 
 type ClockingsTableProps = {
   initialClockings?: Clocking[]
@@ -357,7 +388,7 @@ export function ClockingsTable({ initialClockings, error }: ClockingsTableProps)
               <Search className="h-4 w-4" />
               Buscar
             </Button>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => exportClockingsToCsv(filteredClockings)}>
               <Download className="h-4 w-4" />
               Exportar
             </Button>
@@ -501,15 +532,23 @@ export function ClockingsTable({ initialClockings, error }: ClockingsTableProps)
               <label htmlFor="fichada-tipo" className="text-sm font-medium">
                 Tipo
               </label>
-              <Input
-                id="fichada-tipo"
+              <Select
                 value={formState?.tipo_fichada ?? ""}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setFormState((prev) =>
-                    prev ? { ...prev, tipo_fichada: event.target.value } : prev,
+                    prev ? { ...prev, tipo_fichada: value } : prev,
                   )
                 }
-              />
+              >
+                <SelectTrigger id="fichada-tipo">
+                  <SelectValue placeholder="Seleccionar tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS_FICHADA.map((tipo) => (
+                    <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="fichada-origen" className="text-sm font-medium">
@@ -595,16 +634,24 @@ export function ClockingsTable({ initialClockings, error }: ClockingsTableProps)
               <label htmlFor="fichada-tipo-nuevo" className="text-sm font-medium">
                 Tipo
               </label>
-              <Input
-                id="fichada-tipo-nuevo"
+              <Select
                 value={createState.tipo_fichada}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setCreateState((prev) => ({
                     ...prev,
-                    tipo_fichada: event.target.value,
+                    tipo_fichada: value,
                   }))
                 }
-              />
+              >
+                <SelectTrigger id="fichada-tipo-nuevo">
+                  <SelectValue placeholder="Seleccionar tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS_FICHADA.map((tipo) => (
+                    <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="fichada-empleado" className="text-sm font-medium">

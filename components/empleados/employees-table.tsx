@@ -1,16 +1,23 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Search } from "lucide-react"
+import { Search, Pencil, Trash2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+const CATEGORIAS_LABORALES = ["operaciones", "administracion", "contaduria"]
+const TIPOS_JORNADA = ["completa", "parcial", "turnos"]
+const MODALIDADES_FICHADA = ["habilitada", "deshabilitada"]
+const ESTADOS = ["activo", "inactivo"]
 import {
   AUTH_CHANGE_EVENT,
   createEmployee,
+  deleteEmployee,
   fetchEmployees,
   getStoredToken,
   updateEmployee,
@@ -109,6 +116,8 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
   const [isCreating, setIsCreating] = useState(false)
   const [isLoading, setIsLoading] = useState(!initialEmployees)
   const [loadError, setLoadError] = useState<string | null>(error ?? null)
+  const [pendingDelete, setPendingDelete] = useState<Employee | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const loadEmployees = useCallback(() => {
     if (!getStoredToken()) {
@@ -121,7 +130,7 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
     setIsLoading(true)
     fetchEmployees()
       .then((data) => {
-        setEmployees(data)
+        setEmployees(data.filter((e) => e.estado === "activo"))
         setLoadError(null)
       })
       .catch((err) => {
@@ -191,6 +200,35 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
   const closeCreateDialog = () => {
     setIsCreateOpen(false)
     setCreateError(null)
+  }
+
+  const openDeleteDialog = (employee: Employee) => {
+    setPendingDelete(employee)
+  }
+
+  const closeDeleteDialog = () => {
+    setPendingDelete(null)
+  }
+
+  const handleDelete = async () => {
+    if (!pendingDelete) return
+    try {
+      setIsDeleting(true)
+      await deleteEmployee(pendingDelete.id_empleado)
+      setEmployees((prev) =>
+        prev.filter((e) => e.id_empleado !== pendingDelete.id_empleado),
+      )
+      toast({
+        title: "Empleado eliminado",
+        description: "El empleado fue eliminado correctamente.",
+      })
+      closeDeleteDialog()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error al eliminar"
+      toast({ title: "Error", description: message, variant: "destructive" })
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const handleCreateSubmit = async (
@@ -409,15 +447,26 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
                         {employee.estado}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEditDialog(employee)}
-                      >
-                        Editar
-                      </Button>
-                    </td>
+                     <td className="px-5 py-4 text-right">
+                       <div className="inline-flex items-center gap-2">
+                         <Button
+                           size="icon"
+                           variant="ghost"
+                           aria-label="Editar empleado"
+                           onClick={() => openEditDialog(employee)}
+                         >
+                           <Pencil className="h-4 w-4" />
+                         </Button>
+                         <Button
+                           size="icon"
+                           variant="ghost"
+                           aria-label="Eliminar empleado"
+                           onClick={() => openDeleteDialog(employee)}
+                         >
+                           <Trash2 className="h-4 w-4" />
+                         </Button>
+                       </div>
+                     </td>
                   </tr>
                 ))
               )}
@@ -473,64 +522,109 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
               <label htmlFor="empleado-categoria" className="text-sm font-medium">
                 Categoria laboral
               </label>
-              <Input
-                id="empleado-categoria"
-                value={formState?.categoria_laboral ?? ""}
-                onChange={(event) =>
+              <Select
+                value={formState?.categoria_laboral || undefined}
+                onValueChange={(value) =>
                   setFormState((prev) =>
-                    prev
-                      ? { ...prev, categoria_laboral: event.target.value }
-                      : prev,
+                    prev ? { ...prev, categoria_laboral: value } : prev,
                   )
                 }
-              />
+              >
+                <SelectTrigger id="empleado-categoria">
+                  <SelectValue placeholder="Seleccionar categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    ...CATEGORIAS_LABORALES,
+                    ...(formState?.categoria_laboral && !CATEGORIAS_LABORALES.includes(formState.categoria_laboral)
+                      ? [formState.categoria_laboral]
+                      : []),
+                  ].map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="empleado-jornada" className="text-sm font-medium">
                 Tipo de jornada
               </label>
-              <Input
-                id="empleado-jornada"
-                value={formState?.tipo_jornada ?? ""}
-                onChange={(event) =>
+              <Select
+                value={formState?.tipo_jornada || undefined}
+                onValueChange={(value) =>
                   setFormState((prev) =>
-                    prev ? { ...prev, tipo_jornada: event.target.value } : prev,
+                    prev ? { ...prev, tipo_jornada: value } : prev,
                   )
                 }
-              />
+              >
+                <SelectTrigger id="empleado-jornada">
+                  <SelectValue placeholder="Seleccionar jornada" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    ...TIPOS_JORNADA,
+                    ...(formState?.tipo_jornada && !TIPOS_JORNADA.includes(formState.tipo_jornada)
+                      ? [formState.tipo_jornada]
+                      : []),
+                  ].map((tipo) => (
+                    <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="empleado-fichada" className="text-sm font-medium">
                 Modalidad fichada
               </label>
-              <Input
-                id="empleado-fichada"
-                value={formState?.modalidad_fichada_habilitada ?? ""}
-                onChange={(event) =>
+              <Select
+                value={formState?.modalidad_fichada_habilitada || undefined}
+                onValueChange={(value) =>
                   setFormState((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          modalidad_fichada_habilitada: event.target.value,
-                        }
-                      : prev,
+                    prev ? { ...prev, modalidad_fichada_habilitada: value } : prev,
                   )
                 }
-              />
+              >
+                <SelectTrigger id="empleado-fichada">
+                  <SelectValue placeholder="Seleccionar modalidad" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    ...MODALIDADES_FICHADA,
+                    ...(formState?.modalidad_fichada_habilitada && !MODALIDADES_FICHADA.includes(formState.modalidad_fichada_habilitada)
+                      ? [formState.modalidad_fichada_habilitada]
+                      : []),
+                  ].map((mod) => (
+                    <SelectItem key={mod} value={mod}>{mod}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="empleado-estado" className="text-sm font-medium">
                 Estado
               </label>
-              <Input
-                id="empleado-estado"
-                value={formState?.estado ?? ""}
-                onChange={(event) =>
+              <Select
+                value={formState?.estado || undefined}
+                onValueChange={(value) =>
                   setFormState((prev) =>
-                    prev ? { ...prev, estado: event.target.value } : prev,
+                    prev ? { ...prev, estado: value } : prev,
                   )
                 }
-              />
+              >
+                <SelectTrigger id="empleado-estado">
+                  <SelectValue placeholder="Seleccionar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    ...ESTADOS,
+                    ...(formState?.estado && !ESTADOS.includes(formState.estado)
+                      ? [formState.estado]
+                      : []),
+                  ].map((estado) => (
+                    <SelectItem key={estado} value={estado}>{estado}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>
@@ -676,61 +770,93 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
               <label htmlFor="empleado-categoria-nuevo" className="text-sm font-medium">
                 Categoria laboral
               </label>
-              <Input
-                id="empleado-categoria-nuevo"
+              <Select
                 value={createState.categoria_laboral}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setCreateState((prev) => ({
                     ...prev,
-                    categoria_laboral: event.target.value,
+                    categoria_laboral: value,
                   }))
                 }
-              />
+              >
+                <SelectTrigger id="empleado-categoria-nuevo">
+                  <SelectValue placeholder="Seleccionar categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIAS_LABORALES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="empleado-jornada-nuevo" className="text-sm font-medium">
                 Tipo de jornada
               </label>
-              <Input
-                id="empleado-jornada-nuevo"
+              <Select
                 value={createState.tipo_jornada}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setCreateState((prev) => ({
                     ...prev,
-                    tipo_jornada: event.target.value,
+                    tipo_jornada: value,
                   }))
                 }
-              />
+              >
+                <SelectTrigger id="empleado-jornada-nuevo">
+                  <SelectValue placeholder="Seleccionar jornada" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS_JORNADA.map((tipo) => (
+                    <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="empleado-fichada-nuevo" className="text-sm font-medium">
                 Modalidad fichada
               </label>
-              <Input
-                id="empleado-fichada-nuevo"
+              <Select
                 value={createState.modalidad_fichada_habilitada}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setCreateState((prev) => ({
                     ...prev,
-                    modalidad_fichada_habilitada: event.target.value,
+                    modalidad_fichada_habilitada: value,
                   }))
                 }
-              />
+              >
+                <SelectTrigger id="empleado-fichada-nuevo">
+                  <SelectValue placeholder="Seleccionar modalidad" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MODALIDADES_FICHADA.map((mod) => (
+                    <SelectItem key={mod} value={mod}>{mod}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <label htmlFor="empleado-estado-nuevo" className="text-sm font-medium">
                 Estado
               </label>
-              <Input
-                id="empleado-estado-nuevo"
+              <Select
                 value={createState.estado}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setCreateState((prev) => ({
                     ...prev,
-                    estado: event.target.value,
+                    estado: value,
                   }))
                 }
-              />
+              >
+                <SelectTrigger id="empleado-estado-nuevo">
+                  <SelectValue placeholder="Seleccionar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ESTADOS.map((estado) => (
+                    <SelectItem key={estado} value={estado}>{estado}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeCreateDialog}>
@@ -748,6 +874,41 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!pendingDelete} onOpenChange={(open) => (!open ? closeDeleteDialog() : null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar empleado</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Esta accion eliminara a{" "}
+            <span className="font-medium text-foreground">
+              {pendingDelete?.nombre} {pendingDelete?.apellido}
+            </span>{" "}
+            de forma permanente. Esta accion no se puede deshacer.
+          </p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={closeDeleteDialog}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner className="size-4" />
+                  Eliminando
+                </span>
+              ) : (
+                "Eliminar"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
