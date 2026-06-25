@@ -75,7 +75,6 @@ type ScheduleFormState = {
   tipo_horario: string
   hora_entrada_esperada: string
   hora_salida_esperada: string
-  cantidad_horas_objetivo: string
   banda_horaria_inicio: string
   banda_horaria_fin: string
   tolerancia_entrada_minutos: string
@@ -94,7 +93,6 @@ function buildForm(schedule: Schedule): ScheduleFormState {
     tipo_horario:                    schedule.tipo_horario ?? "",
     hora_entrada_esperada:           schedule.hora_entrada_esperada ?? "",
     hora_salida_esperada:            schedule.hora_salida_esperada ?? "",
-    cantidad_horas_objetivo:         String(schedule.cantidad_horas_objetivo ?? ""),
     banda_horaria_inicio:            schedule.banda_horaria_inicio ?? "",
     banda_horaria_fin:               schedule.banda_horaria_fin ?? "",
     tolerancia_entrada_minutos:      String(schedule.tolerancia_entrada_minutos ?? ""),
@@ -111,9 +109,19 @@ function toPositiveInt(value: string): number | null {
   return Number.isNaN(parsed) || parsed < 0 ? null : parsed
 }
 
-function toPositiveDecimal(value: string): number | null {
-  const parsed = parseFloat(value)
-  return Number.isNaN(parsed) || parsed <= 0 ? null : parsed
+/**
+ * Calcula las horas de trabajo a partir de dos strings "HH:MM" o "HH:MM:SS".
+ * Soporta turnos que cruzan la medianoche (salida < entrada).
+ * Devuelve un número con hasta 2 decimales, o null si los valores son inválidos.
+ */
+function calcularHorasObjetivo(inicio: string, fin: string): number | null {
+  if (!inicio || !fin) return null
+  const [hI, mI] = inicio.split(":").map(Number)
+  const [hF, mF] = fin.split(":").map(Number)
+  if ([hI, mI, hF, mF].some(Number.isNaN)) return null
+  let minutos = (hF * 60 + mF) - (hI * 60 + mI)
+  if (minutos <= 0) minutos += 24 * 60 // turno nocturno
+  return Math.round((minutos / 60) * 100) / 100
 }
 
 function buildPayload(original: Schedule, form: ScheduleFormState): ScheduleUpdate {
@@ -131,9 +139,12 @@ function buildPayload(original: Schedule, form: ScheduleFormState): ScheduleUpda
   if (form.hora_salida_esperada !== original.hora_salida_esperada)
     payload.hora_salida_esperada = form.hora_salida_esperada
 
-  const cantidadHoras = toPositiveDecimal(form.cantidad_horas_objetivo)
-  if (cantidadHoras !== null && cantidadHoras !== original.cantidad_horas_objetivo)
-    payload.cantidad_horas_objetivo = cantidadHoras
+  // Recalcular horas objetivo si cambiaron entrada o salida (o banda para flexible)
+  const inicio = form.tipo_horario === "flexible" ? form.banda_horaria_inicio : form.hora_entrada_esperada
+  const fin    = form.tipo_horario === "flexible" ? form.banda_horaria_fin    : form.hora_salida_esperada
+  const horasCalculadas = calcularHorasObjetivo(inicio, fin)
+  if (horasCalculadas !== null && horasCalculadas !== Number(original.cantidad_horas_objetivo))
+    payload.cantidad_horas_objetivo = horasCalculadas
 
   if (form.banda_horaria_inicio !== original.banda_horaria_inicio)
     payload.banda_horaria_inicio = form.banda_horaria_inicio
@@ -277,26 +288,6 @@ function HorarioFormFields({ state, onChange, idSuffix, showEstado = true }: Hor
         </p>
       </div>
 
-      {/* Horas objetivo */}
-      <div className="grid gap-2">
-        <label htmlFor={`horas-${idSuffix}`} className="text-sm font-medium">
-          Horas de trabajo diarias <span className="text-destructive">*</span>
-        </label>
-        <Input
-          id={`horas-${idSuffix}`}
-          type="number"
-          required
-          min="0.5"
-          max="24"
-          step="0.5"
-          placeholder="Ej: 8"
-          value={state.cantidad_horas_objetivo}
-          onChange={(e) => onChange({ cantidad_horas_objetivo: e.target.value })}
-        />
-        <p className="text-xs text-muted-foreground">
-          Cantidad de horas que el empleado debe cumplir por día.
-        </p>
-      </div>
 
       {/* Entrada / Salida esperadas — relevante para fijo y rotativo */}
       {!esFlexible && (
@@ -512,14 +503,13 @@ function validateForm(state: ScheduleFormState): string | null {
   if (!state.nombre_horario.trim()) return "El nombre es obligatorio."
   if (!state.tipo_horario) return "Seleccioná un tipo de horario."
 
-  const horas = toPositiveDecimal(state.cantidad_horas_objetivo)
-  if (horas === null) return "Las horas de trabajo diarias deben ser un número mayor a 0."
-
   const esFlexible = state.tipo_horario === "flexible"
 
   if (!esFlexible) {
     if (!state.hora_entrada_esperada) return "La hora de entrada es obligatoria."
     if (!state.hora_salida_esperada) return "La hora de salida es obligatoria."
+    if (calcularHorasObjetivo(state.hora_entrada_esperada, state.hora_salida_esperada) === null)
+      return "Las horas de entrada y salida no son válidas."
   } else {
     if (!state.banda_horaria_inicio) return "La hora de inicio de la ventana de fichada es obligatoria."
     if (!state.banda_horaria_fin) return "La hora de fin de la ventana de fichada es obligatoria."
@@ -589,7 +579,6 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
     tipo_horario:                   "",
     hora_entrada_esperada:          "",
     hora_salida_esperada:           "",
-    cantidad_horas_objetivo:        "",
     banda_horaria_inicio:           "",
     banda_horaria_fin:              "",
     tolerancia_entrada_minutos:     "0",
@@ -647,7 +636,6 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
       tipo_horario:                   "",
       hora_entrada_esperada:          "",
       hora_salida_esperada:           "",
-      cantidad_horas_objetivo:        "",
       banda_horaria_inicio:           "",
       banda_horaria_fin:              "",
       tolerancia_entrada_minutos:     "0",
@@ -696,13 +684,16 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
 
     const banda  = resolveHiddenBanda(createState)
     const horas  = resolveHiddenEntradaSalida(createState)
+    const inicio = createState.tipo_horario === "flexible" ? createState.banda_horaria_inicio : createState.hora_entrada_esperada
+    const fin    = createState.tipo_horario === "flexible" ? createState.banda_horaria_fin    : createState.hora_salida_esperada
+    const horasObjetivo = calcularHorasObjetivo(inicio, fin)!
 
     const payload: ScheduleCreate = {
       nombre_horario:                 createState.nombre_horario.trim(),
       tipo_horario:                   createState.tipo_horario,
       hora_entrada_esperada:          horas.hora_entrada_esperada,
       hora_salida_esperada:           horas.hora_salida_esperada,
-      cantidad_horas_objetivo:        toPositiveDecimal(createState.cantidad_horas_objetivo)!,
+      cantidad_horas_objetivo:        horasObjetivo,
       banda_horaria_inicio:           banda.banda_horaria_inicio,
       banda_horaria_fin:              banda.banda_horaria_fin,
       tolerancia_entrada_minutos:     toPositiveInt(createState.tolerancia_entrada_minutos)!,
@@ -859,6 +850,7 @@ export function SchedulesGrid({ initialSchedules, error }: SchedulesGridProps) {
                   variant="ghost"
                   aria-label="Eliminar horario"
                   onClick={() => openDeleteDialog(schedule)}
+                  className="hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

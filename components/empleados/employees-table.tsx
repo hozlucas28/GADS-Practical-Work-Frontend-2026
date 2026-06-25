@@ -492,6 +492,7 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
                            variant="ghost"
                            aria-label="Eliminar empleado"
                            onClick={() => openDeleteDialog(employee)}
+                           className="hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                          >
                            <Trash2 className="h-4 w-4" />
                          </Button>
