@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Search, Pencil, Trash2 } from "lucide-react"
+import { Search, Pencil, Trash2, EyeOff, Eye } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -93,6 +93,7 @@ function buildEmployeePayload(
 
 export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps) {
   const [employees, setEmployees] = useState(initialEmployees ?? [])
+  const [showInactive, setShowInactive] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [formState, setFormState] = useState<EmployeeFormState | null>(null)
@@ -130,7 +131,7 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
     setIsLoading(true)
     fetchEmployees()
       .then((data) => {
-        setEmployees(data.filter((e) => e.estado === "activo"))
+        setEmployees(data)
         setLoadError(null)
       })
       .catch((err) => {
@@ -153,19 +154,21 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
   }, [initialEmployees, loadEmployees])
 
   const filteredEmployees = useMemo(() => {
-    if (!searchQuery) return employees
+    let result = showInactive ? employees : employees.filter((e) => e.estado === "activo")
 
-    const query = searchQuery.toLowerCase()
-    return employees.filter((employee) => {
-      return (
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter((employee) =>
         employee.nombre.toLowerCase().includes(query) ||
         employee.apellido.toLowerCase().includes(query) ||
         employee.legajo.toLowerCase().includes(query) ||
         employee.dni.toLowerCase().includes(query) ||
-        employee.cuil.toLowerCase().includes(query)
+        employee.cuil.toLowerCase().includes(query),
       )
-    })
-  }, [employees, searchQuery])
+    }
+
+    return result
+  }, [employees, searchQuery, showInactive])
 
   const openEditDialog = (employee: Employee) => {
     setSelectedEmployee(employee)
@@ -350,9 +353,28 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
               className="pl-9"
             />
           </div>
-          <Button className="gap-2" onClick={openCreateDialog}>
-            Nuevo Empleado
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={showInactive ? "secondary" : "outline"}
+              className="gap-2"
+              onClick={() => setShowInactive((prev) => !prev)}
+            >
+              {showInactive ? (
+                <>
+                  <EyeOff className="h-4 w-4" />
+                  Ocultar inactivos
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4" />
+                  Ver inactivos
+                </>
+              )}
+            </Button>
+            <Button className="gap-2" onClick={openCreateDialog}>
+              Nuevo Empleado
+            </Button>
+          </div>
         </div>
 
         {loadError && (
@@ -418,7 +440,10 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
                 filteredEmployees.map((employee) => (
                   <tr
                     key={employee.id_empleado}
-                    className="transition-colors hover:bg-muted/20"
+                    className={[
+                      "transition-colors hover:bg-muted/20",
+                      employee.estado === "inactivo" ? "opacity-50" : "",
+                    ].join(" ")}
                   >
                     <td className="px-5 py-4 text-sm font-mono text-muted-foreground">
                       {employee.legajo}
@@ -443,8 +468,13 @@ export function EmployeesTable({ initialEmployees, error }: EmployeesTableProps)
                       {employee.modalidad_fichada_habilitada}
                     </td>
                     <td className="px-5 py-4">
-                      <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                        {employee.estado}
+                      <span className={[
+                        "inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium",
+                        employee.estado === "activo"
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                          : "bg-muted text-muted-foreground",
+                      ].join(" ")}>
+                        {employee.estado === "activo" ? "Activo" : "Inactivo"}
                       </span>
                     </td>
                      <td className="px-5 py-4 text-right">
