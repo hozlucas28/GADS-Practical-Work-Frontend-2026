@@ -47,9 +47,25 @@ function formatDateTime(value: string) {
 }
 
 /** El input datetime-local entrega "2024-06-25T08:00"; el backend espera ISO 8601 con segundos. */
+/**
+ * Convierte el valor de un input datetime-local ("YYYY-MM-DDTHH:MM") a un
+ * string ISO 8601 con el offset de la zona horaria local del navegador.
+ * Así el backend recibe la hora exacta que el usuario ingresó, sin conversión UTC.
+ */
 function toIsoDateTime(value: string): string {
   if (!value) return value
-  return value.length === 16 ? `${value}:00` : value
+  // datetime-local entrega "YYYY-MM-DDTHH:MM" (16 chars) o "YYYY-MM-DDTHH:MM:SS"
+  const normalized = value.length === 16 ? `${value}:00` : value
+  const date = new Date(normalized)
+  if (Number.isNaN(date.getTime())) return normalized
+  // Calcular offset local en formato +HH:MM / -HH:MM
+  const offsetMin = -date.getTimezoneOffset()
+  const sign = offsetMin >= 0 ? "+" : "-"
+  const absMin = Math.abs(offsetMin)
+  const pad = (n: number) => String(n).padStart(2, "0")
+  const offsetStr = `${sign}${pad(Math.floor(absMin / 60))}:${pad(absMin % 60)}`
+  // Reconstruir el string con la fecha/hora local (sin que Date la convierta a UTC)
+  return `${normalized}${offsetStr}`
 }
 
 function exportClockingsToCsv(clockings: Clocking[], employees: Employee[], origenes: OrigenFichada[]) {
