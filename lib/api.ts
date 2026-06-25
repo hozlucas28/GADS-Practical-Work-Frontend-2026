@@ -1,8 +1,8 @@
-const DEFAULT_API_BASE_URL = 'http://localhost:8000'
+if (!process.env.NEXT_PUBLIC_API_BASE_URL) {
+  throw new Error('Missing environment variable: NEXT_PUBLIC_API_BASE_URL')
+}
 
-const API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL
-).replace(/\/$/, '')
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, '')
 
 const TOKEN_STORAGE_KEY = 'tt_access_token'
 export const AUTH_CHANGE_EVENT = 'gads-auth-change'
