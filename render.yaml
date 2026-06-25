@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: gads-practical-work-frontend-2026
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_BASE_URL
+        value: https://gads-practical-work-backend-2026-c582.onrender.com
+      - key: NODE_VERSION
+        value: "20"
