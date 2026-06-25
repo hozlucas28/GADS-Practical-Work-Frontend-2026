@@ -234,6 +234,12 @@ export type ClockingUpdate = {
   id_origen_fichada?: number | null
 }
 
+export type OrigenFichada = {
+  id_origen_fichada: number
+  nombre_origen: string
+  descripcion: string | null
+}
+
 export async function fetchHealth() {
   return apiRequest<{ status: string }>('/health')
 }
@@ -325,6 +331,10 @@ export async function deleteSchedule(idHorario: number) {
   await apiRequest<void>(`/horarios/${idHorario}`, {
     method: 'DELETE',
   })
+}
+
+export async function fetchOrigenFichada() {
+  return apiRequest<OrigenFichada[]>('/fichadas/origenes')
 }
 
 export async function fetchClockings(params?: {

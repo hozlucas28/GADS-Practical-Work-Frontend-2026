@@ -137,11 +137,6 @@ export function AlertList() {
                   {alert.date}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" aria-label="Revisar alerta">
-                  Revisar
-                </Button>
-              </div>
             </div>
           )
         })}
